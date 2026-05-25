@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HF2026 — Suivi Livraisons</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap');
+
+  :root {
+    --red: #C0392B;
+    --red-dark: #922B21;
+    --red-glow: rgba(192,57,43,0.3);
+    --gold: #D4A017;
+    --gold-dim: rgba(212,160,23,0.15);
+    --dark: #0E0E0E;
+    --dark2: #161616;
+    --dark3: #1E1E1E;
+    --dark4: #282828;
+    --border: rgba(255,255,255,0.08);
+    --text: #E8E8E8;
+    --text-dim: #888;
+    --green: #1E8449;
+    --green-light: #27AE60;
+    --orange: #D35400;
+    --blue: #2471A3;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  html, body {
+    height: 100%;
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  #app-header {
+    background: var(--dark2);
+    border-bottom: 2px solid var(--red);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 12px;
+  }
+  #app-header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--red);
+    flex: 1;
+  }
+  #app-header h1 span { color: var(--gold); }
+
+  .mode-toggle {
+    display: flex;
+    background: var(--dark4);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .mode-btn {
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: var(--red);
+    color: white;
+  }
+
+  /* ── VIEWS ── */
+  .view { display: none; height: calc(100vh - 52px); overflow-y: auto; }
+  .view.active { display: block; }
+
+  /* ── VUE LIVREUR ── */
+  #view-livreur { padding: 0; }
+
+  .livreur-header {
+    background: var(--dark2);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .search-bar {
+    width: 100%;
+    background: var(--dark4);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .search-bar:focus { border-color: var(--red); }
+  .search-bar::placeholder { color: var(--text-dim); }
+
+  .zone-filter {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .zone-filter::-webkit-scrollbar { display: none; }
+  .zone-chip {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--dark4);
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .zone-chip.active {
+    background: var(--red);
+    border-color: var(--red);
+    color: white;
+  }
+
+  .bars-list { padding: 8px 12px 80px; }
+
+  .bar-card {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .bar-card.statut-livre  { border-left: 3px solid var(--green-light); }
+  .bar-card.statut-partiel { border-left: 3px solid var(--orange); }
+  .bar-card.statut-probleme { border-left: 3px solid var(--red); }
+  .bar-card.statut-attente  { border-left: 3px solid #444; }
+
+  .bar-card-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    cursor: pointer;
+    gap: 10px;
+  }
+
+  .bar-info { flex: 1; min-width: 0; }
+  .bar-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .bar-zone-badge {
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'Barlow Condensed', sans-serif;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--dark4);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .statut-badge {
+    font-size: 18px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .bar-expand { display: none; }
+  .bar-expand.open { display: block; }
+
+  .expand-body {
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ref-line {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 1px;
+    padding: 8px 0 10px;
+  }
+
+  /* Tableau produits */
+  .produits-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .produits-table th {
+    background: var(--dark4);
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 6px 8px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .produits-table th:first-child { text-align: left; }
+  .produits-table td {
+    padding: 7px 8px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+  }
+  .produits-table td:first-child { text-align: left; font-size: 12px; color: var(--text); }
+  .produits-table tr:last-child td { border-bottom: none; }
+  .val-plan { color: var(--text-dim); }
+  .val-sc { color: var(--gold); font-weight: 600; }
+  .zero { color: #444; }
+
+  /* Formulaire statut */
+  .form-statut {
+    background: var(--dark3);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 4px;
+  }
+  .form-row {
+    margin-bottom: 10px;
+  }
+  .form-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .statut-btns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .statut-btn {
+    padding: 9px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--dark4);
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .statut-btn:hover { border-color: #666; }
+  .statut-btn.selected-livre   { background: var(--green); border-color: var(--green); color: white; }
+  .statut-btn.selected-partiel { background: var(--orange); border-color: var(--orange); color: white; }
+  .statut-btn.selected-probleme { background: var(--red-dark); border-color: var(--red); color: white; }
+  .statut-btn.selected-attente  { background: #333; border-color: #555; color: #aaa; }
+
+  .form-input {
+    width: 100%;
+    background: var(--dark4);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .form-input:focus { border-color: var(--red); }
+
+  .btn-valider {
+    width: 100%;
+    margin-top: 4px;
+    padding: 11px;
+    background: var(--red);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-valider:hover { background: var(--red-dark); }
+  .btn-valider:active { transform: scale(0.98); }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--green);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999;
+    transition: transform 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--red); }
+
+  /* ── VUE COORDINATEUR ── */
+  #view-coord { padding: 16px; }
+
+  .coord-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+
+  /* Compteurs */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .kpi-card {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .kpi-card.kpi-livre   { border-top: 2px solid var(--green-light); }
+  .kpi-card.kpi-partiel { border-top: 2px solid var(--orange); }
+  .kpi-card.kpi-probleme { border-top: 2px solid var(--red); }
+  .kpi-card.kpi-attente  { border-top: 2px solid #555; }
+  .kpi-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    line-height: 1;
+  }
+  .kpi-livre .kpi-num   { color: var(--green-light); }
+  .kpi-partiel .kpi-num { color: var(--orange); }
+  .kpi-probleme .kpi-num { color: var(--red); }
+  .kpi-attente .kpi-num  { color: #555; }
+  .kpi-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+  }
+
+  /* Barre progression */
+  .progress-wrap {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .progress-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    color: var(--gold);
+  }
+  .progress-bar-track {
+    height: 8px;
+    background: var(--dark4);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+  }
+  .progress-seg {
+    height: 100%;
+    transition: width 0.4s;
+  }
+  .seg-livre   { background: var(--green-light); }
+  .seg-partiel { background: var(--orange); }
+  .seg-probleme { background: var(--red); }
+
+  /* Tableau coord */
+  .coord-table-wrap {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .coord-table-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .coord-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .coord-table th {
+    background: var(--dark3);
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .coord-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .coord-table tr:last-child td { border-bottom: none; }
+  .coord-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge-statut {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+  .badge-livre    { background: rgba(39,174,96,0.2); color: #2ecc71; }
+  .badge-partiel  { background: rgba(211,84,0,0.2); color: #e67e22; }
+  .badge-probleme { background: rgba(192,57,43,0.2); color: #e74c3c; }
+  .badge-attente  { background: rgba(100,100,100,0.2); color: #888; }
+
+  .time-cell { color: var(--gold); font-size: 11px; }
+  .livreur-cell { color: var(--text-dim); font-size: 11px; }
+
+  /* Export */
+  .btn-export {
+    width: 100%;
+    padding: 12px;
+    background: var(--dark3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--gold);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 8px;
+  }
+  .btn-export:hover { border-color: var(--gold); background: var(--gold-dim); }
+
+  .btn-reset {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 60px;
+  }
+  .btn-reset:hover { border-color: var(--red); color: var(--red); }
+
+  /* Scroll */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  /* Config GSheets */
+  .gs-config {
+    background: var(--dark3);
+    border: 1px solid var(--gold-dim);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .gs-config-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+  .gs-config-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .gs-config code {
+    background: var(--dark4);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: var(--gold);
+    font-family: monospace;
+  }
+  .gs-status {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    padding: 5px 0;
+  }
+  .gs-status.ok { color: var(--green-light); }
+  .gs-status.ko { color: var(--text-dim); }
+
+  .empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+  }
+
+  @media (min-width: 600px) {
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    .statut-btns { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header id="app-header">
+  <h1>HF<span>2026</span> LIVRAISONS</h1>
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="setMode('livreur')">🚛 Livreur</button>
+    <button class="mode-btn" onclick="setMode('coord')">📊 Coord</button>
+  </div>
+</header>
+
+<!-- VUE LIVREUR -->
+<div id="view-livreur" class="view active">
+  <div class="livreur-header">
+    <input class="search-bar" type="search" placeholder="🔍 Rechercher un bar..." id="searchInput" oninput="filterBars()">
+    <div class="zone-filter" id="zoneFilter"></div>
+  </div>
+  <div class="bars-list" id="barsList"></div>
+</div>
+
+<!-- VUE COORDINATEUR -->
+<div id="view-coord" class="view">
+  <div class="coord-title">TABLEAU DE BORD</div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-livre">
+      <div class="kpi-num" id="kpi-livre">0</div>
+      <div class="kpi-label">✅ Livrés</div>
+    </div>
+    <div class="kpi-card kpi-partiel">
+      <div class="kpi-num" id="kpi-partiel">0</div>
+      <div class="kpi-label">⚠️ Partiels</div>
+    </div>
+    <div class="kpi-card kpi-probleme">
+      <div class="kpi-num" id="kpi-probleme">0</div>
+      <div class="kpi-label">❌ Problèmes</div>
+    </div>
+    <div class="kpi-card kpi-attente">
+      <div class="kpi-num" id="kpi-attente">0</div>
+      <div class="kpi-label">⏳ En attente</div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>AVANCEMENT GLOBAL</span>
+      <span class="progress-pct" id="pct-text">0%</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-seg seg-livre"   id="seg-livre"   style="width:0%"></div>
+      <div class="progress-seg seg-partiel" id="seg-partiel" style="width:0%"></div>
+      <div class="progress-seg seg-probleme" id="seg-probleme" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="coord-table-wrap">
+    <div class="coord-table-title">
+      <span>STATUT PAR BAR</span>
+      <span id="coord-subtitle" style="font-size:11px;color:var(--text-dim);font-weight:400"></span>
+    </div>
+    <table class="coord-table" id="coordTable">
+      <thead>
+        <tr>
+          <th>Bar</th>
+          <th>Zone</th>
+          <th>Statut</th>
+          <th>Heure</th>
+          
+        </tr>
+      </thead>
+      <tbody id="coordTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="gs-config">
+    <div class="gs-config-title">⚙️ Sync Google Sheets — <span style="color:var(--green-light);font-size:11px">● ACTIVE</span></div>
+    <div class="gs-config-note">
+      Pour activer la sync centralisée, renseignez l'URL de votre Google Apps Script Web App.<br>
+      <a href="https://developers.google.com/apps-script" target="_blank" style="color:var(--gold);font-size:10px">→ Guide de configuration</a>
+    </div>
+    <input class="form-input" id="gsUrl" placeholder="https://script.google.com/macros/s/AKfycbwiI0hYS9gP1xH6vW9lJHxKVUsWw_Kwt04cT2cHM3rgjUdJeUC2Be_6Ryfo-y7gz71QDQ/exec" value="https://script.google.com/macros/s/AKfycbwiI0hYS9gP1xH6vW9lJHxKVUsWw_Kwt04cT2cHM3rgjUdJeUC2Be_6Ryfo-y7gz71QDQ/exec" style="margin-bottom:8px" oninput="saveGsUrl()">
+    <div class="gs-status ok" id="gs-status">● Configuré — sync active à chaque validation</div>
+  </div>
+
+  <button class="btn-export" onclick="exportCSV()">⬇ EXPORTER CSV COMPLET</button>
+  <button class="btn-reset" onclick="confirmReset()">↺ Réinitialiser toutes les données</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DONNÉES — 48 bars HF2026 (extraites du plan v28.3)
+// ══════════════════════════════════════════════════════
+const BARS_DATA = [{"ref":"HF26-CATH-BARARTIS","zone":"Cathédrale","bar":"BAR ARTISTE","total_init":1920,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":2.0,"c_qte":672},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":2.0,"c_qte":120},{"nom":"ECO33 — Demis 33cl","sc_nb":0,"sc_qte":0,"c_nb":1.0,"c_qte":480},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.6,"c_qte":648}]},{"ref":"HF26-CATH-BARCOCKT","zone":"Cathédrale","bar":"BAR COCKTAIL BASKET","total_init":1000,"produits":[{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":2,"c_qte":1000}]},{"ref":"HF26-CATH-BARCOCKT","zone":"Cathédrale","bar":"BAR COCKTAIL BOIS","total_init":3132,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":7.0,"c_qte":2352},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":13.0,"c_qte":780}]},{"ref":"HF26-CATH-BARFOH","zone":"Cathédrale","bar":"BAR FOH","total_init":56300,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":4,"sc_qte":20000,"c_nb":75.0,"c_qte":25200},{"nom":"Pichet — Pichets 1L","sc_nb":4,"sc_qte":3900,"c_nb":120.0,"c_qte":7200}]},{"ref":"HF26-CATH-BARFRUIT","zone":"Cathédrale","bar":"BAR FRUITS","total_init":3600,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":10.0,"c_qte":3360},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":4.0,"c_qte":240}]},{"ref":"HF26-CATH-BARGRAND","zone":"Cathédrale","bar":"BAR GRANDE ROUE 1 COTE FORET","total_init":19390,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":2,"sc_qte":10000,"c_nb":15.0,"c_qte":5040},{"nom":"Pichet — Pichets 1L","sc_nb":2,"sc_qte":1950,"c_nb":40.0,"c_qte":2400}]},{"ref":"HF26-CATH-BARGRAND","zone":"Cathédrale","bar":"BAR GRANDE ROUE 2 COTE TOILETTES","total_init":22854,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":3,"sc_qte":15000,"c_nb":14.0,"c_qte":4704},{"nom":"Pichet — Pichets 1L","sc_nb":2,"sc_qte":1950,"c_nb":20.0,"c_qte":1200}]},{"ref":"HF26-CATH-BARHARLE","zone":"Cathédrale","bar":"BAR HARLEY","total_init":26160,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":60.0,"c_qte":20160},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":100.0,"c_qte":6000}]},{"ref":"HF26-CATH-BARSCORP","zone":"Cathédrale","bar":"BAR SCORPION ALTAR TEMPLE","total_init":9120,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":20.0,"c_qte":6720},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":40.0,"c_qte":2400}]},{"ref":"HF26-CATH-BARSCORP","zone":"Cathédrale","bar":"BAR SCORPION ARBRE","total_init":14688,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":33.0,"c_qte":11088},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":60.0,"c_qte":3600}]},{"ref":"HF26-CATH-BARSYLAK","zone":"Cathédrale","bar":"BAR SYLAK","total_init":26160,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":60.0,"c_qte":20160},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":100.0,"c_qte":6000}]},{"ref":"HF26-CATH-BARTERRA","zone":"Cathédrale","bar":"BAR TERRASSE CLUB","total_init":21644,"produits":[{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":0.2,"c_qte":12},{"nom":"ECO33 — Demis 33cl","sc_nb":0,"sc_qte":0,"c_nb":45.0,"c_qte":21600},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.0,"c_qte":32}]},{"ref":"HF26-CATH-BEERCYCL","zone":"Cathédrale","bar":"BEERCYCLETTE CARLSBERG","total_init":2928,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":8.0,"c_qte":2688},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":4.0,"c_qte":240}]},{"ref":"HF26-CATH-BEERCYCL","zone":"Cathédrale","bar":"BEERCYCLETTE MAGNERS","total_init":4332,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":12.0,"c_qte":4032},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":5.0,"c_qte":300}]},{"ref":"HF26-CATH-BARFOOT","zone":"Cathédrale","bar":"BAR FOOT","total_init":0,"produits":[]},{"ref":"HF26-CATH-DESOIFFE","zone":"Cathédrale","bar":"DESOIFFEURS ZC","total_init":12260,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":1,"sc_qte":5000,"c_nb":20.0,"c_qte":6720},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":9.0,"c_qte":540}]},{"ref":"HF26-CATH-LOGES","zone":"Cathédrale","bar":"LOGES","total_init":9600,"produits":[{"nom":"ECO33 — Demis 33cl","sc_nb":0,"sc_qte":0,"c_nb":20.0,"c_qte":9600}]},{"ref":"HF26-CATH-SALON","zone":"Cathédrale","bar":"SALON","total_init":9600,"produits":[{"nom":"ECO33 — Demis 33cl","sc_nb":0,"sc_qte":0,"c_nb":20.0,"c_qte":9600}]},{"ref":"HF26-HELL-BARAVINS","zone":"Hellcity Square","bar":"BAR A VINS","total_init":792,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":0.2,"c_qte":84},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":1.0,"c_qte":60},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.6,"c_qte":648}]},{"ref":"HF26-HELL-HELLCITY","zone":"Hellcity Square","bar":"HELLCITY","total_init":10844,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":1,"sc_qte":5000,"c_nb":4.0,"c_qte":1344},{"nom":"Pichet — Pichets 1L","sc_nb":4,"sc_qte":3900,"c_nb":10.0,"c_qte":600}]},{"ref":"HF26-HELL-BARGRIMB","zone":"Hellcity Square","bar":"BAR GRIMBERGEN","total_init":7560,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":20.0,"c_qte":6720},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":14.0,"c_qte":840}]},{"ref":"HF26-HELL-BARHELLG","zone":"Hellcity Square","bar":"BAR HELLGATE","total_init":10676,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":6.0,"c_qte":2016},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":11.0,"c_qte":660},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":16,"c_qte":8000}]},{"ref":"HF26-HELL-BARLAMOR","zone":"Hellcity Square","bar":"BAR LA MORDUE - DEATH ALLEY","total_init":20400,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":60.0,"c_qte":20160},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":4.0,"c_qte":240}]},{"ref":"HF26-HELL-BARBUMBU","zone":"Hellcity Square","bar":"BAR BUMBU/DEACON - DEATH ALLEY","total_init":2188,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":3.0,"c_qte":1008},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":3.0,"c_qte":180},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":2,"c_qte":1000}]},{"ref":"HF26-HELL-DESOIFFE","zone":"Hellcity Square","bar":"DESOIFFEURS HS","total_init":5340,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":15.0,"c_qte":5040},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":5.0,"c_qte":300}]},{"ref":"HF26-HELL-HELLSPIR","zone":"Hellcity Square","bar":"HELL SPIRITS BAR - DEATH ALLEY","total_init":2964,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":4.0,"c_qte":1344},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":2.0,"c_qte":120},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":3,"c_qte":1500}]},{"ref":"HF26-HELL-BARVIP","zone":"Hellcity Square VIP","bar":"BAR VIP","total_init":22295,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":1,"sc_qte":5000,"c_nb":16.0,"c_qte":5376},{"nom":"Pichet — Pichets 1L","sc_nb":1,"sc_qte":975,"c_nb":17.0,"c_qte":1020},{"nom":"ECO33 — Demis 33cl","sc_nb":0,"sc_qte":0,"c_nb":20.0,"c_qte":9600},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.3,"c_qte":324}]},{"ref":"HF26-HELL-DESSOIFF","zone":"Hellcity Square VIP","bar":"DESSOIFFEUR VIP","total_init":4788,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":13.0,"c_qte":4368},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":7.0,"c_qte":420}]},{"ref":"HF26-META-BARAVINS","zone":"Metal Corner","bar":"BAR A VINS MC","total_init":4296,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":1.0,"c_qte":336},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":3.0,"c_qte":180},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":3.5,"c_qte":3780}]},{"ref":"HF26-META-BARJACKD","zone":"Metal Corner","bar":"BAR JACK DANIELS","total_init":2000,"produits":[{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":4,"c_qte":2000}]},{"ref":"HF26-META-BARJAGER","zone":"Metal Corner","bar":"BAR JAGER","total_init":3504,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":9.0,"c_qte":3024},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":8.0,"c_qte":480}]},{"ref":"HF26-META-BARLABÊT","zone":"Metal Corner","bar":"BAR LA BÊTE","total_init":17436,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":2,"sc_qte":10000,"c_nb":16.0,"c_qte":5376},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":26.0,"c_qte":1560},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":1,"c_qte":500}]},{"ref":"HF26-META-BARRICAR","zone":"Metal Corner","bar":"BAR RICARD","total_init":14600,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":5.0,"c_qte":1680},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":7.0,"c_qte":420},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":25,"c_qte":12500}]},{"ref":"HF26-META-BARTEREM","zone":"Metal Corner","bar":"BAR TEREMANA","total_init":0,"produits":[]},{"ref":"HF26-META-BARTITO'","zone":"Metal Corner","bar":"BAR TITO'S","total_init":2008,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":3.0,"c_qte":1008},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":2,"c_qte":1000}]},{"ref":"HF26-META-DESOIFFE","zone":"Metal Corner","bar":"DESOIFFEURS MC","total_init":4236,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":11.0,"c_qte":3696},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":9.0,"c_qte":540}]},{"ref":"HF26-META-PUBMETAL","zone":"Metal Corner","bar":"PUB METAL CORNER","total_init":25620,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":3,"sc_qte":15000,"c_nb":20.0,"c_qte":6720},{"nom":"Pichet — Pichets 1L","sc_nb":4,"sc_qte":3900,"c_nb":0.0,"c_qte":0}]},{"ref":"HF26-WARZ-BARAMUSC","zone":"Warzone","bar":"BAR A MUSCADET","total_init":25176,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":6.0,"c_qte":2016},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":80.0,"c_qte":4800},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":17.0,"c_qte":18360}]},{"ref":"HF26-WARZ-BARVALLE","zone":"Warzone","bar":"BAR VALLEY","total_init":12252,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":27.0,"c_qte":9072},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":53.0,"c_qte":3180}]},{"ref":"HF26-WARZ-BARWARZO","zone":"Warzone","bar":"BAR WARZONE COTE MUSCADET","total_init":2856,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":6.0,"c_qte":2016},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":14.0,"c_qte":840}]},{"ref":"HF26-WARZ-BARWARZO","zone":"Warzone","bar":"BAR WARZONE VIGNES","total_init":15756,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":31.0,"c_qte":10416},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":89.0,"c_qte":5340}]},{"ref":"HF26-WARZ-DESOIFFE","zone":"Warzone","bar":"DESOIFFEURS WZ","total_init":5064,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":14.0,"c_qte":4704},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":6.0,"c_qte":360}]},{"ref":"HF26-ZB-BARABIER","zone":"ZB","bar":"BAR A BIERES COUILLE DE LOUP","total_init":7440,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":20.0,"c_qte":6720},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":12.0,"c_qte":720}]},{"ref":"HF26-ZB-BARAHUIT","zone":"ZB","bar":"BAR A HUITRES BENEVOLES","total_init":108,"produits":[{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.1,"c_qte":108}]},{"ref":"HF26-ZB-BARASAUC","zone":"ZB","bar":"BAR A SAUCISSONS BENEVOLES","total_init":54,"produits":[{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.1,"c_qte":54}]},{"ref":"HF26-ZB-BARRICAR","zone":"ZB","bar":"BAR RICARD BENEVOLES","total_init":740,"produits":[{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":4.0,"c_qte":240},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":1,"c_qte":500}]},{"ref":"HF26-ZT-BARGUING","zone":"ZT","bar":"BAR GUINGUETTE","total_init":5070,"produits":[{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":16.0,"c_qte":960},{"nom":"ECO33 — Demis 33cl","sc_nb":0,"sc_qte":0,"c_nb":8.0,"c_qte":3840},{"nom":"ECO18 — Shots 18cl","sc_nb":0,"sc_qte":0,"c_nb":0.2,"c_qte":270}]},{"ref":"HF26-EASY-BAREASYC","zone":"EASYCAMP","bar":"BAR EASY CAMP","total_init":3884,"produits":[{"nom":"ECO60 — Pintes 60cl","sc_nb":0,"sc_qte":0,"c_nb":9.0,"c_qte":3024},{"nom":"Pichet — Pichets 1L","sc_nb":0,"sc_qte":0,"c_nb":6.0,"c_qte":360},{"nom":"ECO28 — Gobelets 28cl","sc_nb":0,"sc_qte":0,"c_nb":1,"c_qte":500}]}];
+
+const STATUTS = {
+  'livre':    { label: '✅ Livré',       cls: 'selected-livre',    badge: 'badge-livre',    icon: '✅' },
+  'partiel':  { label: '⚠️ Partiel',     cls: 'selected-partiel',  badge: 'badge-partiel',  icon: '⚠️' },
+  'probleme': { label: '❌ Problème',    cls: 'selected-probleme', badge: 'badge-probleme', icon: '❌' },
+  'attente':  { label: '⏳ En attente', cls: 'selected-attente',  badge: 'badge-attente',  icon: '⏳' },
+};
+
+// ── State ────────────────────────────────────────────
+let state = {};        // { ref+bar: { statut, heure, livreur, obs, ts } }
+let activeZone = 'Toutes';
+let searchQ = '';
+let gsUrl = '';
+
+const STORAGE_KEY = 'hf2026_livraisons';
+
+function loadState() {
+  try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { state = {}; }
+  gsUrl = localStorage.getItem('hf2026_gsurl') || 'https://script.google.com/macros/s/AKfycbwiI0hYS9gP1xH6vW9lJHxKVUsWw_Kwt04cT2cHM3rgjUdJeUC2Be_6Ryfo-y7gz71QDQ/exec';
+  if (gsUrl) document.getElementById('gsUrl').value = gsUrl;
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function stateKey(bar) { return bar.ref + '|' + bar.bar; }
+
+function getBarState(bar) {
+  return state[stateKey(bar)] || { statut: 'attente', heure: '', livreur: '', obs: '' };
+}
+
+// ── Zones ────────────────────────────────────────────
+function buildZoneFilter() {
+  const zones = ['Toutes', ...new Set(BARS_DATA.map(b => b.zone))];
+  const el = document.getElementById('zoneFilter');
+  el.innerHTML = zones.map(z =>
+    `<div class="zone-chip${z === activeZone ? ' active' : ''}" onclick="setZone('${z.replace(/'/g,"\\'")}')">
+      ${z}
+    </div>`
+  ).join('');
+}
+
+function setZone(z) {
+  activeZone = z;
+  buildZoneFilter();
+  renderBars();
+}
+
+// ── Rendu liste bars ─────────────────────────────────
+function renderBars() {
+  const q = searchQ.toLowerCase();
+  const filtered = BARS_DATA.filter(b => {
+    const matchZone = activeZone === 'Toutes' || b.zone === activeZone;
+    const matchQ    = !q || b.bar.toLowerCase().includes(q) || b.zone.toLowerCase().includes(q);
+    return matchZone && matchQ;
+  });
+
+  const el = document.getElementById('barsList');
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-state">Aucun bar trouvé</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map((bar, i) => {
+    const bs = getBarState(bar);
+    const st = STATUTS[bs.statut] || STATUTS.attente;
+    const hasSC = bar.produits.some(p => p.sc_nb > 0);
+
+    const produitsRows = bar.produits.length
+      ? bar.produits.map(p => `
+        <tr>
+          <td>${p.nom}</td>
+          <td class="${p.sc_nb > 0 ? 'val-sc' : 'zero'}">${p.sc_nb > 0 ? p.sc_nb + ' SC' : '—'}</td>
+          <td class="${p.sc_qte > 0 ? 'val-sc' : 'zero'}">${p.sc_qte > 0 ? p.sc_qte.toLocaleString('fr') : '—'}</td>
+          <td class="${p.c_nb > 0 ? 'val-plan' : 'zero'}">${p.c_nb > 0 ? p.c_nb : '—'}</td>
+          <td class="${p.c_qte > 0 ? 'val-plan' : 'zero'}">${p.c_qte > 0 ? p.c_qte.toLocaleString('fr') : '—'}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="5" style="color:var(--text-dim);text-align:center;font-size:11px">Aucun produit planifié</td></tr>`;
+
+    const key = stateKey(bar).replace(/'/g, "\\'").replace(/"/g, '\\"');
+
+    return `
+    <div class="bar-card statut-${bs.statut}" id="card-${i}">
+      <div class="bar-card-header" onclick="toggleCard(${i})">
+        <div class="bar-info">
+          <div class="bar-name">${bar.bar}</div>
+          <div class="bar-meta">${bar.zone}${bar.total_init > 0 ? ' · ' + bar.total_init.toLocaleString('fr') + ' unités' : ''}${hasSC ? ' · <span style="color:var(--gold)">SC</span>' : ''}</div>
+        </div>
+        <div class="bar-zone-badge">${bar.zone.split(' ')[0]}</div>
+        <div class="statut-badge">${st.icon}</div>
+      </div>
+      <div class="bar-expand" id="expand-${i}">
+        <div class="expand-body">
+          <div class="ref-line">Réf : ${bar.ref}</div>
+          <table class="produits-table">
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>SC nb</th>
+                <th>SC qté</th>
+                <th>C. init nb</th>
+                <th>C. init qté</th>
+              </tr>
+            </thead>
+            <tbody>${produitsRows}</tbody>
+          </table>
+          <div class="form-statut">
+            <div class="form-row">
+              <div class="form-label">Statut livraison</div>
+              <div class="statut-btns">
+                ${Object.entries(STATUTS).map(([k, v]) =>
+                  `<button class="statut-btn ${bs.statut === k ? v.cls : ''}"
+                     onclick="setStatut(${i}, '${k}')">${v.label}</button>`
+                ).join('')}
+              </div>
+            </div>
+            
+          <button class="btn-valider" onclick="valider(${i})">VALIDER</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  window._filteredBars = filtered;
+}
+
+function toggleCard(i) {
+  const el = document.getElementById(`expand-${i}`);
+  el.classList.toggle('open');
+}
+
+function setStatut(i, statut) {
+  const bar = window._filteredBars[i];
+  const bs = getBarState(bar);
+  bs.statut = statut;
+  state[stateKey(bar)] = bs;
+  // Met à jour les boutons visuellement sans re-render complet
+  const btns = document.querySelectorAll(`#expand-${i} .statut-btn`);
+  btns.forEach((btn, bi) => {
+    const k = Object.keys(STATUTS)[bi];
+    btn.className = 'statut-btn' + (k === statut ? ' ' + STATUTS[k].cls : '');
+  });
+  // Met à jour le badge et la bordure de la carte
+  document.getElementById(`card-${i}`).className = `bar-card statut-${statut}`;
+  document.querySelector(`#card-${i} .statut-badge`).textContent = STATUTS[statut].icon;
+}
+
+function updateField(i, field, value) {
+  const bar = window._filteredBars[i];
+  const bs = getBarState(bar);
+  bs[field] = value;
+  state[stateKey(bar)] = bs;
+}
+
+function valider(i) {
+  const bar = window._filteredBars[i];
+  const bs = getBarState(bar);
+  bs.ts = new Date().toISOString();
+  // Lire les champs au moment de la validation
+  const now = new Date();
+  bs.heure   = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  bs.livreur = '';
+  bs.obs     = document.getElementById(`obs-${i}`)?.value || bs.obs;
+  state[stateKey(bar)] = bs;
+  saveState();
+  // Fermer le panneau
+  document.getElementById(`expand-${i}`).classList.remove('open');
+  // Update badge
+  document.getElementById(`card-${i}`).className = `bar-card statut-${bs.statut}`;
+  document.querySelector(`#card-${i} .statut-badge`).textContent = STATUTS[bs.statut].icon;
+  showToast(`${bar.bar} — ${STATUTS[bs.statut].label}`);
+  // Sync GSheets si configuré
+  syncGSheets(bar, bs);
+}
+
+// ── Coordinateur ─────────────────────────────────────
+function renderCoord() {
+  const total = BARS_DATA.length;
+  let livre = 0, partiel = 0, probleme = 0, attente = 0;
+
+  BARS_DATA.forEach(b => {
+    const s = getBarState(b).statut;
+    if (s === 'livre') livre++;
+    else if (s === 'partiel') partiel++;
+    else if (s === 'probleme') probleme++;
+    else attente++;
+  });
+
+  document.getElementById('kpi-livre').textContent    = livre;
+  document.getElementById('kpi-partiel').textContent  = partiel;
+  document.getElementById('kpi-probleme').textContent = probleme;
+  document.getElementById('kpi-attente').textContent  = attente;
+
+  const pct = Math.round((livre + partiel) / total * 100);
+  document.getElementById('pct-text').textContent = pct + '%';
+  document.getElementById('seg-livre').style.width    = (livre / total * 100) + '%';
+  document.getElementById('seg-partiel').style.width  = (partiel / total * 100) + '%';
+  document.getElementById('seg-probleme').style.width = (probleme / total * 100) + '%';
+
+  document.getElementById('coord-subtitle').textContent =
+    `${total - attente} / ${total} traités`;
+
+  // Tableau — trié : problèmes d'abord, puis partiels, puis livrés, puis attente
+  const ORDER = { probleme: 0, partiel: 1, livre: 2, attente: 3 };
+  const sorted = [...BARS_DATA].sort((a, b) =>
+    ORDER[getBarState(a).statut] - ORDER[getBarState(b).statut]
+  );
+
+  document.getElementById('coordTableBody').innerHTML = sorted.map(bar => {
+    const bs = getBarState(bar);
+    const st = STATUTS[bs.statut] || STATUTS.attente;
+    return `<tr>
+      <td><b>${bar.bar}</b></td>
+      <td style="color:var(--text-dim);font-size:11px">${bar.zone}</td>
+      <td><span class="badge-statut ${st.badge}">${st.label}</span></td>
+      <td class="time-cell">${bs.heure || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Mode switch ───────────────────────────────────────
+function setMode(mode) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`view-${mode}`).classList.add('active');
+  event.target.classList.add('active');
+  if (mode === 'coord') renderCoord();
+}
+
+// ── Filtres ───────────────────────────────────────────
+function filterBars() {
+  searchQ = document.getElementById('searchInput').value;
+  renderBars();
+}
+
+// ── Toast ─────────────────────────────────────────────
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Export CSV ────────────────────────────────────────
+function exportCSV() {
+  const rows = [['Réf', 'Zone', 'Bar', 'Statut', 'Heure', 'Livreur', 'Observations', 'Horodatage']];
+  BARS_DATA.forEach(bar => {
+    const bs = getBarState(bar);
+    rows.push([bar.ref, bar.zone, bar.bar, STATUTS[bs.statut]?.label || '', bs.heure, bs.obs, bs.ts || '']);
+  });
+  const csv = rows.map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `HF2026_Livraisons_${new Date().toISOString().slice(0,16).replace(/:/g,'-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Reset ─────────────────────────────────────────────
+function confirmReset() {
+  if (confirm('Réinitialiser toutes les données de suivi ? Cette action est irréversible.')) {
+    state = {};
+    saveState();
+    renderBars();
+    renderCoord();
+    showToast('Données réinitialisées', true);
+  }
+}
+
+// ── Google Sheets sync ────────────────────────────────
+function saveGsUrl() {
+  gsUrl = document.getElementById('gsUrl').value.trim();
+  localStorage.setItem('hf2026_gsurl', gsUrl);
+  document.getElementById('gs-status').className = gsUrl ? 'gs-status ok' : 'gs-status ko';
+  document.getElementById('gs-status').textContent = gsUrl
+    ? '● Configuré — sync active à chaque validation'
+    : '○ Non configuré — les données restent locales';
+}
+
+async function syncGSheets(bar, bs) {
+  if (!gsUrl) return;
+  try {
+    await fetch(gsUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ref: bar.ref, zone: bar.zone, bar: bar.bar,
+        statut: STATUTS[bs.statut]?.label || bs.statut,
+        heure: bs.heure, livreur: bs.livreur, obs: bs.obs,
+        ts: bs.ts
+      })
+    });
+  } catch(e) { /* silencieux — local storage suffit */ }
+}
+
+// ── Init ──────────────────────────────────────────────
+loadState();
+buildZoneFilter();
+renderBars();
+</script>
+</body>
+</html>

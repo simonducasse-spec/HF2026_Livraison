@@ -1034,7 +1034,25 @@ function saveGsUrl() {
 async function syncGSheets(bar, bs) {
   if (!gsUrl) return;
   try {
-    const payload = JSON.stringify({
+    // Google Apps Script redirige les POST — on passe par un iframe + form
+    // pour éviter la perte du body lors de la redirection
+    const formId = 'gs-hidden-form';
+    let form = document.getElementById(formId);
+    if (form) form.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.name = 'gs-iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    form = document.createElement('form');
+    form.id = formId;
+    form.method = 'POST';
+    form.action = gsUrl;
+    form.target = 'gs-iframe';
+    form.style.display = 'none';
+
+    const fields = {
       ref:    bar.ref,
       zone:   bar.zone,
       bar:    bar.bar,
@@ -1042,19 +1060,26 @@ async function syncGSheets(bar, bs) {
       heure:  bs.heure,
       obs:    bs.obs || '',
       ts:     bs.ts || new Date().toISOString()
+    };
+
+    Object.entries(fields).forEach(([k, v]) => {
+      const input = document.createElement('input');
+      input.type  = 'hidden';
+      input.name  = k;
+      input.value = v;
+      form.appendChild(input);
     });
-    const res = await fetch(gsUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload
-    });
-    const result = await res.json();
-    if (result.ok) {
-      showToast('✓ Sync Google Sheets OK');
-    } else {
-      console.error('GSheets error:', result.error);
-    }
+
+    document.body.appendChild(form);
+    form.submit();
+
+    // Nettoyage après envoi
+    setTimeout(() => {
+      form.remove();
+      iframe.remove();
+    }, 3000);
+
+    showToast('✓ Envoyé vers Google Sheets');
   } catch(e) {
     console.error('Sync error:', e);
   }

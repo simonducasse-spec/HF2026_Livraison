@@ -1034,18 +1034,30 @@ function saveGsUrl() {
 async function syncGSheets(bar, bs) {
   if (!gsUrl) return;
   try {
-    await fetch(gsUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ref: bar.ref, zone: bar.zone, bar: bar.bar,
-        statut: STATUTS[bs.statut]?.label || bs.statut,
-        heure: bs.heure, livreur: bs.livreur, obs: bs.obs,
-        ts: bs.ts
-      })
+    const payload = JSON.stringify({
+      ref:    bar.ref,
+      zone:   bar.zone,
+      bar:    bar.bar,
+      statut: STATUTS[bs.statut]?.label || bs.statut,
+      heure:  bs.heure,
+      obs:    bs.obs || '',
+      ts:     bs.ts || new Date().toISOString()
     });
-  } catch(e) { /* silencieux — local storage suffit */ }
+    const res = await fetch(gsUrl, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
+    const result = await res.json();
+    if (result.ok) {
+      showToast('✓ Sync Google Sheets OK');
+    } else {
+      console.error('GSheets error:', result.error);
+    }
+  } catch(e) {
+    console.error('Sync error:', e);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────

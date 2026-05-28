@@ -1019,15 +1019,15 @@ function linkify(text) {
     const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (driveMatch) {
       const fileId = driveMatch[1];
-      const imgUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-      return `<a href="${imgUrl}" target="_blank" style="display:block;margin-top:8px">
-        <img src="${imgUrl}"
+      // thumbnail fonctionne sans restriction CORS
+      const thumbUrl   = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+      const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+      const openUrl    = `https://drive.google.com/file/d/${fileId}/view`;
+      return `<a href="${openUrl}" target="_blank" style="display:block;margin-top:8px">
+        <img src="${thumbUrl}"
           style="max-width:100%;border-radius:6px;border:1px solid rgba(212,160,23,0.3);cursor:pointer"
-          onerror="this.style.display='none';this.nextSibling.style.display='inline'"
+          onerror="this.outerHTML='<a href=\'${openUrl}\' target=\'_blank\' style=\'display:block;margin-top:6px;padding:8px 12px;background:rgba(212,160,23,0.1);border:1px solid var(--gold);border-radius:6px;color:var(--gold);font-size:12px;text-decoration:none;text-align:center\'>📎 Voir l\'image dans Drive</a>'"
           alt="Image logistique">
-        <span style="display:none;color:var(--gold);font-size:11px;text-decoration:underline">
-          📎 Voir l'image (ouvrir dans Drive)
-        </span>
       </a>`;
     }
     // Autre URL → lien cliquable

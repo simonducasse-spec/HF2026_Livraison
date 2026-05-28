@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HF2026 — Suivi Livraisons</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap');
@@ -1021,13 +1021,12 @@ function linkify(text) {
       || url.match(/\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i);
     if (isDirectImage) {
       return `
-        <div style="margin-top:8px">
+        <a href="${url}" target="_blank" style="display:block;margin-top:8px">
           <img src="${url}"
-            style="max-width:100%;border-radius:6px;border:1px solid rgba(212,160,23,0.3);display:block;cursor:pointer"
-            onclick="window.open('${url}','_blank')"
-            onerror="this.outerHTML='<a href=\'${url}\' target=\'_blank\' style=\'display:block;margin-top:6px;padding:8px 12px;background:rgba(212,160,23,0.1);border:1px solid var(--gold);border-radius:6px;color:var(--gold);font-size:12px;text-decoration:none;text-align:center\'>📎 Voir l\'image</a>'"
+            style="max-width:100%;border-radius:6px;border:1px solid rgba(212,160,23,0.3);display:block"
+            onerror="this.closest('a').outerHTML='<a href=\'${url}\' target=\'_blank\' style=\'display:block;margin-top:6px;padding:8px 12px;background:rgba(212,160,23,0.1);border:1px solid var(--gold);border-radius:6px;color:var(--gold);font-size:12px;text-decoration:none;text-align:center\'>📎 Voir l\'image</a>'"
             alt="Image logistique">
-        </div>`;
+        </a>`;
     }
 
     // 2. Google Drive → iframe preview

@@ -172,6 +172,10 @@
     padding: 14px 14px 12px;
     cursor: pointer;
     gap: 12px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .bar-info { flex: 1; min-width: 0; }
@@ -291,6 +295,8 @@
     cursor: pointer;
     transition: all 0.15s;
     text-align: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   .statut-btn:hover { border-color: #666; }
   .statut-btn.selected-livre   { background: var(--green); border-color: var(--green); color: white; }
@@ -326,6 +332,8 @@
     letter-spacing: 2px;
     cursor: pointer;
     transition: background 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-valider:hover { background: var(--red-dark); }
   .btn-valider:active { transform: scale(0.98); }
